@@ -9,16 +9,20 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"sort"
 	"time"
 
 	rpio "github.com/stianeikeland/go-rpio"
 )
 
 const (
-	samples = 5
-	delay   = time.Millisecond * 500
-	ceiling = 133
+	maxsamples = 3
+	delay      = time.Millisecond * 500
+	timeout    = time.Second
+	ceiling    = 133
+	dataDir    = "/home/pi/Gasoleo/data/"
 )
 
 var (
@@ -157,9 +161,26 @@ var (
 	}
 )
 
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
+func saveToFile(msg string) {
+	d1 := []byte(msg)
+	now := time.Now()
+	filename := fmt.Sprintf("%d-%d-%d{%d}-%d-%d-%d.dat", now.Year(), now.Month(), now.Day(), now.Weekday(), now.Hour(), now.Minute(), now.Second())
+	err := ioutil.WriteFile(dataDir+filename, d1, 0644)
+	check(err)
+}
+
 func main() {
+
 	// Open and map memory to access gpio, check for errors
 	fmt.Println("Opening rpio ...")
+	check(rpio.Open())
+
 	if err := rpio.Open(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -178,38 +199,28 @@ func main() {
 	fmt.Println("Waiting to settle ...")
 	time.Sleep(2 * time.Second)
 
-	var duration time.Duration
-
 	// Measuring samples
 	fmt.Println("Starting samples ...")
 
-	for i := 0; i < samples; i++ {
-		fmt.Printf("Measuring sample #%v ... \n", i)
-		// Detect any remaining pulses
-		for echoPin.EdgeDetected() {
-			fmt.Println("Whoa, spurious edge detected")
-		}
+	durations := []float64{}
+	for i := 0; i < maxsamples; i++ {
 		// Send the pulse
 		trigPin.High()
 		time.Sleep(time.Microsecond * 10)
+		echoPin.Detect(rpio.FallEdge)
 		trigPin.Low()
 		startingTime := time.Now()
 
 		// Detect the echo
-		// for time.Since(startingTime) < time.Second && echoPin.Read() == rpio.Low {
-		// 	fmt.Println("Pin is ", echoPin.Read(), ", so far is ", time.Since(startingTime), ", time is ", time.Now())
-		// }
-		// fmt.Println("... and Pin is ", echoPin.Read(), ", so far is ", time.Since(startingTime), ", time is ", time.Now())
-		for i := 0; i < 20; i++ {
-			fmt.Println("Pin is ", echoPin.Read(), ", so far is ", time.Since(startingTime), ", time is ", time.Now())
+		for time.Since(startingTime) < timeout && !echoPin.EdgeDetected() {
 		}
-		fmt.Println("... and Pin is ", echoPin.Read(), ", so far is ", time.Since(startingTime), ", time is ", time.Now())
 
 		// Measure the distance
 		thisDuration := time.Since(startingTime)
-		thisDurationUs := float64(thisDuration) / float64(time.Microsecond)
-		fmt.Printf("Done! this duration is %.1f us\n", thisDurationUs)
-		duration += thisDuration
+		if thisDuration < timeout {
+			durations = append(durations, float64(thisDuration))
+		}
+		// Otherwise this measurement is bad
 
 		// Wait until echo fades
 		time.Sleep(delay)
@@ -217,8 +228,19 @@ func main() {
 	}
 
 	// Calculate the distance and the liters
-	fmt.Println("Calculating everything ... ")
-	duration /= samples // Calculate the average
+	fmt.Println("Calculating everything (good samples are ", len(durations), ")... ")
+	sort.Float64s(durations)
+	var duration float64
+	if len(durations) == 0 {
+		fmt.Println("Bad measurement")
+		os.Exit(1)
+	}
+	if len(durations)%2 == 0 {
+		duration = (durations[len(durations)/2-1] + durations[len(durations)/2]) / 2
+	} else {
+		duration = durations[len(durations)/2]
+	}
+
 	durationUs := float64(duration) / float64(time.Microsecond)
 	fmt.Printf("Average duration is %.1f us\n", durationUs)
 	distance := (durationUs * .0343) / 2
@@ -234,8 +256,11 @@ func main() {
 		liters = litersTable[tranch] + (litersTable[tranch+1]-litersTable[tranch])*(stick-float64(tranch))
 	}
 
-	fmt.Printf("Duration (us) is %.1f, distance (cm) is %.1f, stick (cm) is %.1f, liters (l) is %.1f\n",
+	message := fmt.Sprintf("Duration (us) = %.1f\nDistance (cm) = %.1f\nStick (cm) = %.1f\nLiters (l) = %.1f\n",
 		durationUs, distance, stick, liters,
 	)
+
+	fmt.Println(message)
+	// saveToFile(message)
 
 }
