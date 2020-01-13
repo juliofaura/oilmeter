@@ -11,12 +11,17 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/wcharczuk/go-chart/drawing"
+
 	chart "github.com/wcharczuk/go-chart"
 )
 
 const (
 	// dataFile   = "/home/pi/Gasoleo/data.txt"
-	dataFile = "/Users/julio/Dropbox/Gasoleo/data.txt"
+	dataFile        = "/Users/julio/Dropbox/Gasoleo/data.txt"
+	graphFile       = "/Users/julio/Dropbox/Gasoleo/graph.png"
+	amountGood      = 1000
+	amountDangerous = 600
 )
 
 type datapoint struct {
@@ -91,8 +96,15 @@ func main() {
 	LastX := XValues[len(XValues)-1]
 	LastY := YValues[len(YValues)-1]
 
-	labelStyle := chart.StyleTextDefaults()
-	labelStyle.StrokeWidth = 10
+	var labelColor drawing.Color
+
+	if LastY > amountGood {
+		labelColor = chart.ColorGreen
+	} else if LastY > amountDangerous {
+		labelColor = chart.ColorYellow
+	} else {
+		labelColor = chart.ColorRed
+	}
 
 	graph := chart.Chart{
 		XAxis: chart.XAxis{
@@ -102,12 +114,22 @@ func main() {
 				typedDate := chart.TimeFromFloat64(typed)
 				return fmt.Sprintf("%d/%d/%d", typedDate.Month(), typedDate.Day(), typedDate.Year())
 			},
+			Style: chart.Style{
+				TextRotationDegrees: 45,
+			},
+		},
+		YAxis: chart.YAxis{
+			ValueFormatter: func(v interface{}) string {
+				return fmt.Sprintf("%.1f", v.(float64))
+			},
 		},
 		Series: []chart.Series{
 			chart.ContinuousSeries{
 				Style: chart.Style{
 					StrokeColor: chart.GetDefaultColor(0).WithAlpha(64),
 					FillColor:   chart.GetDefaultColor(0).WithAlpha(64),
+					StrokeWidth: 5,
+					DotWidth:    4,
 				},
 				XValues: XValues,
 				YValues: YValues,
@@ -118,7 +140,11 @@ func main() {
 						XValue: LastX,
 						YValue: LastY,
 						Label:  fmt.Sprintf("%.1f", LastY),
-						Style:  labelStyle,
+						Style: chart.Style{
+							StrokeWidth: 10,
+							FontSize:    chart.StyleTextDefaults().FontSize,
+							StrokeColor: labelColor,
+						},
 					},
 				},
 			},
@@ -126,7 +152,7 @@ func main() {
 		Title: "Oil liters vs time",
 	}
 
-	f, _ := os.Create("output.png")
+	f, _ := os.Create(graphFile)
 	defer f.Close()
 	graph.Render(chart.PNG, f)
 }
