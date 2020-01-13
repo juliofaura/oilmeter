@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"sort"
 	"time"
@@ -18,11 +19,12 @@ import (
 )
 
 const (
-	maxsamples = 3
+	maxsamples = 30
 	delay      = time.Millisecond * 500
 	timeout    = time.Second
-	ceiling    = 133
+	ceiling    = 144.4
 	dataDir    = "/home/pi/Gasoleo/data/"
+	dataFile   = "/home/pi/Gasoleo/data.txt"
 )
 
 var (
@@ -159,6 +161,7 @@ var (
 		2995.68301629862,
 		3000,
 	}
+	now = time.Now()
 )
 
 func check(e error) {
@@ -169,13 +172,26 @@ func check(e error) {
 
 func saveToFile(msg string) {
 	d1 := []byte(msg)
-	now := time.Now()
-	filename := fmt.Sprintf("%d-%d-%d{%d}-%d-%d-%d.dat", now.Year(), now.Month(), now.Day(), now.Weekday(), now.Hour(), now.Minute(), now.Second())
+	filename := fmt.Sprintf("%04d-%02d-%02d{%d}-%02d-%02d-%02d.txt", now.Year(), now.Month(), now.Day(), now.Weekday(), now.Hour(), now.Minute(), now.Second())
 	err := ioutil.WriteFile(dataDir+filename, d1, 0644)
 	check(err)
 }
 
+func appendToDataFile(msg string) {
+	f, err := os.OpenFile(dataFile,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println(err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(msg + "\n"); err != nil {
+		log.Println(err)
+	}
+}
+
 func main() {
+
+	fmt.Println("Taking a measurement, date/time is", time.Now())
 
 	// Open and map memory to access gpio, check for errors
 	fmt.Println("Opening rpio ...")
@@ -200,7 +216,7 @@ func main() {
 	time.Sleep(2 * time.Second)
 
 	// Measuring samples
-	fmt.Println("Starting samples ...")
+	fmt.Printf("Starting samples (ceiling is %.1f)...\n", ceiling)
 
 	durations := []float64{}
 	for i := 0; i < maxsamples; i++ {
@@ -228,7 +244,7 @@ func main() {
 	}
 
 	// Calculate the distance and the liters
-	fmt.Println("Calculating everything (good samples are ", len(durations), ")... ")
+	fmt.Printf("Calculating everything (good samples are %d)...\n", len(durations))
 	sort.Float64s(durations)
 	var duration float64
 	if len(durations) == 0 {
@@ -242,7 +258,7 @@ func main() {
 	}
 
 	durationUs := float64(duration) / float64(time.Microsecond)
-	fmt.Printf("Average duration is %.1f us\n", durationUs)
+	// fmt.Printf("Average duration is %.1f us\n", durationUs)
 	distance := (durationUs * .0343) / 2
 	stick := ceiling - distance
 	var liters float64
@@ -259,8 +275,23 @@ func main() {
 	message := fmt.Sprintf("Duration (us) = %.1f\nDistance (cm) = %.1f\nStick (cm) = %.1f\nLiters (l) = %.1f\n",
 		durationUs, distance, stick, liters,
 	)
-
 	fmt.Println(message)
-	// saveToFile(message)
+	saveToFile(message)
+
+	dataline := fmt.Sprintf("%0d,%d,%d,%d,%d,%d,%d,%d,%f,%f,%f,%f",
+		now.Unix(),
+		now.Year(),
+		now.Month(),
+		now.Day(),
+		now.Weekday(),
+		now.Hour(),
+		now.Minute(),
+		now.Second(),
+		durationUs,
+		distance,
+		stick,
+		liters,
+	)
+	appendToDataFile(dataline)
 
 }

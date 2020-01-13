@@ -252,10 +252,12 @@ Se ha instalado Raspbian, user es "pi", passwd es "capullete". Se le ha puesto u
 
 - Medidor
 - Antena Wifi USB
-- Samba
-- Crontab
+- SSH access
+- Samba => entry in fstab, incl .smbcredentials and _netdev, mount -a in /etc/rc.local (adding sleep 20 just in case), run raspi-config then "Boot Options" then enable "Wait for network at boot" -> so disks are mounted by rc.local
+- Crontab (incl)
 - Programa con HC-SR04
 - Programa con VL53L1X
+- Raspi-config -> Interfacing options -> enable I2C
 
 ## Análisis y reports
 
