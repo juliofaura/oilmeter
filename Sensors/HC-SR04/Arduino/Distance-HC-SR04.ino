@@ -3,7 +3,7 @@ const int echoPin = 10;
 
 const int samples = 3;
 const int time_delay = 500;
-const int ceiling = 133;
+const int ceiling = 144;
 
 float duration, distance, stick, liters;
 int tranch;

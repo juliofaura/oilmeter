@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/wcharczuk/go-chart/drawing"
 
@@ -17,11 +19,13 @@ import (
 )
 
 const (
-	// dataFile   = "/home/pi/Gasoleo/data.txt"
-	dataFile        = "/Users/julio/Dropbox/Gasoleo/data.txt"
+	dataFile = "./data.txt"
+	// dataFile        = "/Users/julio/Dropbox/Gasoleo/data.txt"
 	graphFile       = "/Users/julio/Dropbox/Gasoleo/graph.png"
 	amountGood      = 1000
 	amountDangerous = 600
+	timeForAverage  = (3 * 24 * time.Hour) / time.Second
+	newGasThreshold = 200
 )
 
 type datapoint struct {
@@ -106,6 +110,23 @@ func main() {
 		labelColor = chart.ColorRed
 	}
 
+	var average = 0.0
+	firstPointForAverage, endingPointForAverage := data[len(data)-1], data[len(data)-1]
+	var bigChanges = 0.0
+	for i := len(data) - 2; i >= 0; i-- {
+		if math.Abs(data[i].Liters-data[i+1].Liters) > newGasThreshold {
+			bigChanges += data[i+1].Liters - data[i].Liters
+		}
+		endingPointForAverage = data[i]
+		if endingPointForAverage.Timestamp-firstPointForAverage.Timestamp >= int64(timeForAverage) {
+			break
+		}
+	}
+
+	if firstPointForAverage.Timestamp != endingPointForAverage.Timestamp {
+		average = -float64(endingPointForAverage.Liters-firstPointForAverage.Liters+bigChanges) / (float64(endingPointForAverage.Timestamp-firstPointForAverage.Timestamp) / (24 * 60 * 60))
+	}
+
 	graph := chart.Chart{
 		XAxis: chart.XAxis{
 			TickPosition: chart.TickPositionBetweenTicks,
@@ -149,7 +170,7 @@ func main() {
 				},
 			},
 		},
-		Title: "Oil liters vs time",
+		Title: "Oil liters vs time (avg is " + fmt.Sprintf("%.2f", average) + " liters / day)",
 	}
 
 	f, _ := os.Create(graphFile)

@@ -1,3 +1,10 @@
+/*
+A blinker example using go-rpio library.
+Requires administrator rights to run
+Toggles a LED on physical pin 19 (mcu pin 10)
+Connect a LED with resistor from pin 19 to ground.
+*/
+
 package main
 
 import (
@@ -7,7 +14,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -28,14 +34,12 @@ const (
 	maxsamples      = 30
 	delay           = time.Millisecond * 500
 	timeout         = time.Second
-	ceiling         = 143.7
+	ceiling         = 144.4
 	dataDir         = "/home/pi/Gasoleo/data/"
 	dataFile        = "/home/pi/Gasoleo/data.txt"
 	graphFile       = "/home/pi/Gasoleo/graph.png"
 	amountGood      = 1000
 	amountDangerous = 600
-	timeForAverage  = (3 * 24 * time.Hour) / time.Second
-	newGasThreshold = 200
 )
 
 var (
@@ -371,23 +375,6 @@ func main() {
 		labelColor = chart.ColorRed
 	}
 
-	var average = 0.0
-	firstPointForAverage, endingPointForAverage := data[len(data)-1], data[len(data)-1]
-	var bigChanges = 0.0
-	for i := len(data) - 2; i >= 0; i-- {
-		if math.Abs(data[i].Liters-data[i+1].Liters) > newGasThreshold {
-			bigChanges += data[i+1].Liters - data[i].Liters
-		}
-		endingPointForAverage = data[i]
-		if endingPointForAverage.Timestamp-firstPointForAverage.Timestamp >= int64(timeForAverage) {
-			break
-		}
-	}
-
-	if firstPointForAverage.Timestamp != endingPointForAverage.Timestamp {
-		average = -float64(endingPointForAverage.Liters-firstPointForAverage.Liters+bigChanges) / (float64(endingPointForAverage.Timestamp-firstPointForAverage.Timestamp) / (24 * 60 * 60))
-	}
-
 	graph := chart.Chart{
 		XAxis: chart.XAxis{
 			TickPosition: chart.TickPositionBetweenTicks,
@@ -431,7 +418,7 @@ func main() {
 				},
 			},
 		},
-		Title: "Oil liters vs time (avg is " + fmt.Sprintf("%.2f", average) + " liters / day)",
+		Title: "Oil liters vs time",
 	}
 
 	f, _ := os.Create(graphFile)
