@@ -13,7 +13,7 @@ const (
 	maxsamples = 5
 	delay      = 500 * time.Millisecond
 	timeout    = time.Second
-	ceiling    = 144.4
+	ceiling    = 143.7
 )
 
 var (

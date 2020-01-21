@@ -25,7 +25,7 @@ type datapoint struct {
 }
 
 const (
-	maxsamples      = 30
+	maxsamples      = 70
 	delay           = time.Millisecond * 500
 	timeout         = time.Second
 	ceiling         = 143.7
@@ -258,15 +258,23 @@ func main() {
 	fmt.Printf("Calculating everything (good samples are %d)...\n", len(durations))
 	sort.Float64s(durations)
 	var duration float64
-	if len(durations) == 0 {
-		fmt.Println("Bad measurement")
-		os.Exit(1)
+
+	// Using the median:
+	// if len(durations) == 0 {
+	// 	fmt.Println("Bad measurement")
+	// 	os.Exit(1)
+	// }
+	// if len(durations)%2 == 0 {
+	// 	duration = (durations[len(durations)/2-1] + durations[len(durations)/2]) / 2
+	// } else {
+	// 	duration = durations[len(durations)/2]
+	// }
+
+	// Using the average of the middle tranch
+	for i := len(durations) / 3; i < len(durations)-len(durations)/3; i++ {
+		duration += durations[i]
 	}
-	if len(durations)%2 == 0 {
-		duration = (durations[len(durations)/2-1] + durations[len(durations)/2]) / 2
-	} else {
-		duration = durations[len(durations)/2]
-	}
+	duration /= float64(len(durations) - 2*(len(durations)/3))
 
 	durationUs := float64(duration) / float64(time.Microsecond)
 	// fmt.Printf("Average duration is %.1f us\n", durationUs)
