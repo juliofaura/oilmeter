@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	trigPin = rpio.Pin(4)
+	trigPin = rpio.Pin(27)
 	echoPin = rpio.Pin(17)
 
 	litersTable = []float64{

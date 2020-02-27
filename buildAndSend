@@ -3,4 +3,4 @@
 # env GOOS=linux GOARCH=arm GOARM=5 go build && scp ./oilmeter pi@raspberry2:Gasoleo
 # env GOOS=linux GOARCH=arm GOARM=5 go build && cp oilmeter ~/Dropbox/Gasoleo/
 
-./build && cp oilmeter ~/Dropbox/Gasoleo
+./build && scp ./oilmeter pi@jardin:Local

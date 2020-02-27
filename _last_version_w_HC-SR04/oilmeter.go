@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -10,11 +9,11 @@ import (
 	"log"
 	"math"
 	"os"
-	"os/exec"
 	"sort"
 	"strconv"
 	"time"
 
+	rpio "github.com/stianeikeland/go-rpio"
 	chart "github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/drawing"
 )
@@ -26,10 +25,13 @@ type datapoint struct {
 }
 
 const (
-	maxsamples      = 5
+	maxsamples      = 70
 	delay           = time.Millisecond * 500
 	timeout         = time.Second
-	ceiling         = 133.3
+	ceiling         = 140.2
+	dataDir         = "/home/pi/Gasoleo/data/"
+	dataFile        = "/home/pi/Gasoleo/data.txt"
+	graphFile       = "/home/pi/Gasoleo/graph.png"
 	amountGood      = 1000
 	amountDangerous = 600
 	timeForAverage  = (3 * 24 * time.Hour) / time.Second
@@ -37,7 +39,8 @@ const (
 )
 
 var (
-	workingDir, dataFile, graphFile string
+	trigPin = rpio.Pin(27)
+	echoPin = rpio.Pin(17)
 
 	litersTable = []float64{
 		0,
@@ -181,7 +184,7 @@ func check(e error) {
 func saveToFile(msg string) {
 	d1 := []byte(msg)
 	filename := fmt.Sprintf("%04d-%02d-%02d{%d}-%02d-%02d-%02d.txt", now.Year(), now.Month(), now.Day(), now.Weekday(), now.Hour(), now.Minute(), now.Second())
-	err := ioutil.WriteFile(workingDir+filename, d1, 0644)
+	err := ioutil.WriteFile(dataDir+filename, d1, 0644)
 	check(err)
 }
 
@@ -199,51 +202,83 @@ func appendToDataFile(msg string) {
 
 func main() {
 
-	if len(os.Args) != 2 {
-		fmt.Println("Usage: " + os.Args[0] + " <working dir>, where <working dir> is the directory where the .txt and .png files will be placed")
+	fmt.Println("Taking a measurement, date/time is", time.Now())
+
+	// Open and map memory to access gpio, check for errors
+	fmt.Println("Opening rpio ...")
+	check(rpio.Open())
+
+	if err := rpio.Open(); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	workingDir = os.Args[1] + "/"
-	dataFile = workingDir + "data.txt"
-	graphFile = workingDir + "graph.png"
+	// Unmap gpio memory when done
+	defer rpio.Close()
 
-	fmt.Println("Taking a measurement, date/time is", time.Now())
+	// Set pin to output mode
+	fmt.Println("Configuring pins ...")
+	trigPin.Output()
+	echoPin.Input()
+	trigPin.Low()
+
+	// Some time to settle
+	fmt.Println("Waiting to settle ...")
+	time.Sleep(2 * time.Second)
 
 	// Measuring samples
 	fmt.Printf("Starting samples (ceiling is %.1f)...\n", ceiling)
 
-	distances := []float64{}
+	durations := []float64{}
 	for i := 0; i < maxsamples; i++ {
-		cmd := exec.Command("python", workingDir+"distance.py")
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		err := cmd.Run()
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			errStr := string(stderr.Bytes())
-			thisDistance, err := strconv.ParseFloat(errStr, 64)
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				fmt.Println("Distance is", thisDistance)
-				distances = append(distances, thisDistance/10.0)
-			}
+		// Send the pulse
+		trigPin.High()
+		time.Sleep(time.Microsecond * 10)
+		echoPin.Detect(rpio.FallEdge)
+		trigPin.Low()
+		startingTime := time.Now()
+
+		// Detect the echo
+		for time.Since(startingTime) < timeout && !echoPin.EdgeDetected() {
 		}
+
+		// Measure the distance
+		thisDuration := time.Since(startingTime)
+		if thisDuration < timeout {
+			durations = append(durations, float64(thisDuration))
+		}
+		// Otherwise this measurement is bad
+
+		// Wait until echo fades
+		time.Sleep(delay)
+
 	}
 
 	// Calculate the distance and the liters
-	fmt.Printf("Calculating everything (good samples are %d)...\n", len(distances))
-	sort.Float64s(distances)
+	fmt.Printf("Calculating everything (good samples are %d)...\n", len(durations))
+	sort.Float64s(durations)
+	var duration float64
 
-	var distance float64
+	// Using the median:
+	// if len(durations) == 0 {
+	// 	fmt.Println("Bad measurement")
+	// 	os.Exit(1)
+	// }
+	// if len(durations)%2 == 0 {
+	// 	duration = (durations[len(durations)/2-1] + durations[len(durations)/2]) / 2
+	// } else {
+	// 	duration = durations[len(durations)/2]
+	// }
+
 	// Using the average of the middle tranch
-	for i := len(distances) / 3; i < len(distances)-len(distances)/3; i++ {
-		distance += distances[i]
+	for i := len(durations) / 3; i < len(durations)-len(durations)/3; i++ {
+		duration += durations[i]
 	}
-	distance /= float64(len(distances) - 2*(len(distances)/3))
+	duration /= float64(len(durations) - 2*(len(durations)/3))
 
+	durationUs := float64(duration) / float64(time.Microsecond)
+	// fmt.Printf("Average duration is %.1f us\n", durationUs)
+	distance := (durationUs * .0343) / 2
 	stick := ceiling - distance
 	var liters float64
 
@@ -257,7 +292,7 @@ func main() {
 	}
 
 	message := fmt.Sprintf("Duration (us) = %.1f\nDistance (cm) = %.1f\nStick (cm) = %.1f\nLiters (l) = %.1f\n",
-		0.0, distance, stick, liters,
+		durationUs, distance, stick, liters,
 	)
 	fmt.Println(message)
 	saveToFile(message)
@@ -271,7 +306,7 @@ func main() {
 		now.Hour(),
 		now.Minute(),
 		now.Second(),
-		0.0,
+		durationUs,
 		distance,
 		stick,
 		liters,

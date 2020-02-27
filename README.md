@@ -55,22 +55,142 @@ El Arduino sólo se ha usado para calibrar las medidas y comprobar el sensor. El
 ---
 ## Setup Raspberry
 
-Se ha instalado Raspbian y se ha conectado a la red wifi a través de una antena auxiliar USB (red "Mongolillo's Territory"). Con Raspi-config se ha habilitado ssh, y se han instalado las claves públicas para acceder sin passsword
+Se ha usado una Raspbery Pi 3B, aunque también se podría hacer con una A+. Para el setup:
+- Se instala Raspbian (https://www.raspberrypi.org/downloads/raspbian/)
+- Se cambia el nombre del host, editando los ficheros ```/etc/hostname``` y ```/etc/hosts``` (este último sólo para el alias de localhost)
+- Se registran las redes wifi a las que conectarse, editando el fichero ```/etc/wpa_supplicant/wpa_supplicant.conf``` y añadiendo las entradas relevantes:
+```
+network={
+    ssid="xxx"
+    psk="xxx"
+    key_mgmt=WPA-PSK
+}
+```
+- Se hacen la(s) IP(s) estática(s), editando el fichero ```/etc/dhcpcp.conf``` para añadir los datos correctos:
+```
+# Example static IP configuration:
+interface wlan0
+static ip_address=192.168.1.XX/24
+static routers=192.168.1.1
+static domain_name_servers=80.58.61.250
+```
+- Con ```Raspi-config``` se habilita SSH, dentro de "Interfacing options"
+- Se instalan claves públicas para poder acceder vía ssh sin password, haciendo ```ssh-copy-id pi@<raspberry pi IP>``` desde donde se quiera acceder a futuro
+- Se inhabilita el acceso por SSH con password, editando el fichero ```/etc/ssh/sshd_config``` e inhabilitando todo el acceso con password:
+```
+ChallengeResponseAuthentication no
+PasswordAuthentication no
+UsePAM no
+PermitRootLogin no
+```
+, y después reiniciando el servicio de SSH con ```/etc/init.d/ssh reload``` o con ```sudo systemctl reload ssh```
+
+y se ha conectado a la red wifi a través de una antena auxiliar USB (red "Mongolillo's Territory"). Con Raspi-config se ha habilitado ssh, y se han instalado las claves públicas para acceder sin passsword
 
 El medidor se alimenta con 5V, pero para el pin de lectura del eco es necesario utilizar un puente de resistencias R+2R. La conexión es de la siguiente forma:
-- VCC del sensor (cable marríon) -> VCC (pin 1)
+- VCC del sensor (cable marríon) -> VCC (pin 2)
 - GND del sensor (cable amarillo) -> GND (pin 9)
-- Trig del sensor (cable rojo) -> GPIO 04 (pin 7)
+- Trig del sensor (cable rojo) -> GPIO 27 (pin 13)
 - Echo del sensor  (cable naranja) -> A un extremo del puente de resistencias (a la resistencia R)
 - El otro extremo del puente de resistencias (a la resistencia 2R) a GND (pin 6)
 - El medio del puente (en el que se unen ambas resistencias) -> GPIO 17 (pin 11)
 
-POR AQUIIIII
-De cara a poder comunicar los datos de forma que sean accesibles desde fuera, se ha montado un disco remoto por Samba. 
-- Samba => entry in fstab, incl .smbcredentials and _netdev, mount -a in /etc/rc.local (adding sleep 20 just in case), run raspi-config then "Boot Options" then enable "Wait for network at boot" -> so disks are mounted by rc.local
-- Crontab (incl)
+Para usar el VL53L1X:
+- VCC a VCC 3.3V (pin 1, cable rojo)
+- SDA a SDA I2C1 (Pin 3, cable naranja)
+- SCL a SCL I2C1 (Pin5, cable amarillo)
+- GND a GND (pin 7, cable marrón)
+
+
+De cara a poder comunicar los datos de forma que sean accesibles desde fuera, se ha montado un disco remoto por Samba. Para ello hay que:
+- Añadir la siguiente línea a ```/etc/fstab```:
+```
+//192.168.1.24/Gas /home/pi/Gasoleo cifs credentials=/home/pi/.smbcredentials,uid=pi,gid=pi,_netdev,auto 0 0
+```
+- Añadir un fichero ```.smbcredentials```:
+```
+username=pi
+password=<passwd>
+```
+- Montar el disco en startup, añadiendo  ```mount -a``` en ```/etc/rc.local``` (y añadir ```sleep 20``` just in case)
+- Correr ```raspi-config```, seleccionar ```Boot Options```, y habilitar ```Wait for network at boot```
+
+
+Para usar el VL53L1X y en general I2C:
+- Correr ```raspi-config```, seleccionar ```Interfacing Options```, y habilitar ```I2C```
+- Instalar librerías y herramientas:
+```
+sudo apt-get install -y i2c-tools
+sudo pip install smbus2
+sudo pip install vl53l1x
+```
+
+Para contectar medidores de temperatura y en general comunicaciones W1 (en GPIO 04, que es el pin por defecto):
+```
+sudo echo dtoverlay=w1-gpio-pullup,gpiopin=4 >> /boot/config.txt
+sudo modprobe w1_gpio && sudo modprobe w1_therm
+sudo modprobe wire
+sudo modprobe w1-gpio
+sudo modprobe w1-therm
+```
+
+Finalmente, poner en el crontab una medida diaria, o una por hora etc.
 
 El código utilizado está en https://github.com/juliofaura/oilmeter/oilmeter.go
 
-## Análisis y reports
 
+## Setup caldera
+
+Read heat: GPIO 17 (white cable) => up (1) is on, down (0) is off
+Read power: GPIO 27 (gray cable) => down (0) is on, up (1) is off
+
+Relés:
+  Caldera off / on: GPIO 14 (gray cable) and GIO 15 (white cable) => down is off, up is on
+  Heat on / off: GPIO 23 => down is off, up is on
+
+Placa auxiliar:
+
+1  2  3  4  5  6
+o  o  o  o  o  o
+
+    -xxxx-
+    -xxxx-
+    -xxxx-
+    -xxxx-
+    -xxxx-
+    -xxxx-
+    -xxxx-
+    -xxxx-
+
+1 -> polo + del switch de heat (cable granate)
+2 -> polo - del switch de heat (cable azul)
+4 -> GPIO 27 (cable gris)
+5 -> GPIO 17 (cable blanco)
+6 -> GND (cable negro)
+
+Set power: GPIO 14 & GPIO 15 [output, 0 is off, 1 is on]
+Set heat: GPIO 23 [output, 0 is off, 1 is on]
+Read power: GPIO 27 [input, pullup, 0 is on, 1 is off]
+Read heat: GPIO 17 [input, pullup, 1 is on, 0 is off]
+
+Config:
+raspi-gpio set 14-15 op dh
+raspi-gpio set 23 op dl
+raspi-gpio set 17 ip pu
+raspi-gpio set 27 ip pu
+
+set power:
+On -> raspi-gpio set 14-15 dh
+Off -> raspi-gpio set 14-15 dl
+
+set heat:
+On -> raspi-gpio set 23 dh
+Off -> raspi-gpio set 23 dl
+
+Read power:
+if [ -n "$(raspi-gpio get 27 | grep level=0)" ] ; then echo On; else echo Off; fi
+
+Read heat:
+if [ -n "$(raspi-gpio get 17 | grep level=1)" ] ; then echo On; else echo Off; fi
+
+Last measure: 47

@@ -174,7 +174,7 @@ void loop() {
   
   Serial.print("Duration: ");
   Serial.print(duration);
-  Serial.print("Distance: ");
+  Serial.print(", Distance: ");
   Serial.print(distance);
   Serial.print(", Stick: ");
   Serial.print(stick);

@@ -12,7 +12,7 @@
  * SCL: red (A5)
  * SDA: orange (A4)
  */
-#include <Wire.h>
+#include <Wire.h> +
 #include "VL53L1X.h"
 
 VL53L1X Distance_Sensor;
@@ -20,10 +20,10 @@ VL53L1X Distance_Sensor;
 void setup()
 {
   Wire.begin();
-  Wire.setClock(400000); // use 400 kHz I2C
+//  Wire.setClock(1000); // use 400 kHz I2C
 
   Serial.begin(9600);
-  Serial.println("VL53L1X Distance Sensor tests in short distance mode(up to 1.3m).");
+  Serial.println("VL53L1X Distance Sensor tests in short distance mode(up to 1.3m). I2C clock is 1Khz");
   Distance_Sensor.setTimeout(500);
   if (!Distance_Sensor.init())
   {
