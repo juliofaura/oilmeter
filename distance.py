@@ -23,7 +23,7 @@ tof.open()
 # should use `tof.start_ranging(0)`
 # tof.set_timing(66000, 70)
 
-tof.start_ranging(2)  # Start ranging
+tof.start_ranging(1)  # Start ranging
                       # 0 = Unchanged
                       # 1 = Short Range
                       # 2 = Medium Range

@@ -13,7 +13,7 @@ const (
 	maxsamples = 5
 	delay      = 500 * time.Millisecond
 	timeout    = time.Second
-	ceiling    = 143.7
+	ceiling    = 143.0
 )
 
 var (
@@ -194,12 +194,20 @@ func main() {
 			// Send the pulse
 			trigPin.High()
 			time.Sleep(time.Microsecond * 10)
-			echoPin.Detect(rpio.FallEdge)
+			// echoPin.Detect(rpio.FallEdge)
 			trigPin.Low()
 			startingTime := time.Now()
 
 			// Detect the echo
-			for time.Since(startingTime) < timeout && !echoPin.EdgeDetected() {
+
+			// for time.Since(startingTime) < timeout && !echoPin.EdgeDetected() {
+			// }
+
+			// First wait echo pin to settle
+			for time.Since(startingTime) < timeout && echoPin.Read() != rpio.High {
+			}
+			// Then wait for the echo
+			for time.Since(startingTime) < timeout && echoPin.Read() != rpio.Low {
 			}
 
 			// Measure the distance

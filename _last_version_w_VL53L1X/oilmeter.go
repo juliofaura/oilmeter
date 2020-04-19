@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,7 +15,6 @@ import (
 	"strconv"
 	"time"
 
-	rpio "github.com/stianeikeland/go-rpio"
 	chart "github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/drawing"
 )
@@ -28,22 +26,17 @@ type datapoint struct {
 }
 
 const (
-	sensor = "HC-SR04"
-	// sensor = "VL53L1X"
 	maxsamples      = 50
 	delay           = time.Millisecond * 500
 	timeout         = time.Second
-	ceiling         = 143.0
+	ceiling         = 133.3
 	amountGood      = 1000
 	amountDangerous = 600
-	timeForAverage  = (6 * 24 * 60 * 60)
+	timeForAverage  = (3 * 24 * 60 * 60)
 	newGasThreshold = 200
 )
 
 var (
-	trigPin = rpio.Pin(27)
-	echoPin = rpio.Pin(17)
-
 	workingDir, dataFile, graphFile string
 
 	litersTable = []float64{
@@ -204,53 +197,6 @@ func appendToDataFile(msg string) {
 	}
 }
 
-// Returns the distance in mm
-func takeMeasurement() (measurement float64, err error) {
-	switch sensor {
-	case "HC-SR04":
-		// Send the pulse
-		trigPin.High()
-		time.Sleep(time.Microsecond * 10)
-		// echoPin.Detect(rpio.FallEdge)
-		trigPin.Low()
-		startingTime := time.Now()
-
-		// Detect the echo
-
-		// for time.Since(startingTime) < timeout && !echoPin.EdgeDetected() {
-		// }
-
-		// First wait echo pin to settle
-		for time.Since(startingTime) < timeout && echoPin.Read() != rpio.High {
-		}
-		// Then wait for the echo
-		for time.Since(startingTime) < timeout && echoPin.Read() != rpio.Low {
-		}
-
-		// Measure the distance
-		duration := time.Since(startingTime)
-		if duration >= timeout {
-			err = errors.New("Timeout in measurement")
-		} else {
-			durationUs := float64(duration) / float64(time.Microsecond)
-			measurement = (durationUs * .343) / 2
-		}
-	case "VL53L1X":
-		cmd := exec.Command("python", workingDir+"distance.py")
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		err = cmd.Run()
-		if err == nil {
-			errStr := string(stderr.Bytes())
-			measurement, err = strconv.ParseFloat(errStr, 64)
-		}
-	default:
-		log.Fatal("Unknow sensor selected: ", sensor)
-	}
-	time.Sleep(delay)
-	return
-}
-
 func main() {
 
 	if len(os.Args) != 2 {
@@ -262,54 +208,29 @@ func main() {
 	dataFile = workingDir + "data.txt"
 	graphFile = workingDir + "graph.png"
 
-	fmt.Println("Starting")
-	time.Sleep(2 * time.Second)
-
-	// Now configuring GPIO
-
-	// Open and map memory to access gpio, check for errors
-	fmt.Println("Opening rpio ...")
-	check(rpio.Open())
-
-	if err := rpio.Open(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	// Unmap gpio memory when done
-	defer rpio.Close()
-
-	// Set pin to output mode
-	fmt.Println("Configuring pins ...")
-	trigPin.Output()
-	echoPin.Input()
-	trigPin.Low()
-
-	// Some time to settle
-	fmt.Println("Waiting to settle ...")
-	time.Sleep(2 * time.Second)
-
 	fmt.Println("Taking a measurement, date/time is", time.Now())
 
 	// Measuring samples
 	fmt.Printf("Starting samples (ceiling is %.1f)...\n", ceiling)
 
-	atLeastOneValidMeasurement := false
-
 	distances := []float64{}
 	for i := 0; i < maxsamples; i++ {
-		thisDistance, err := takeMeasurement()
+		cmd := exec.Command("python", workingDir+"distance.py")
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		err := cmd.Run()
 		if err != nil {
 			fmt.Println(err)
 		} else {
-			// fmt.Println("Distance is", thisDistance)
-			distances = append(distances, thisDistance/10.0)
-			atLeastOneValidMeasurement = true
+			errStr := string(stderr.Bytes())
+			thisDistance, err := strconv.ParseFloat(errStr, 64)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				// fmt.Println("Distance is", thisDistance)
+				distances = append(distances, thisDistance/10.0)
+			}
 		}
-	}
-
-	if !atLeastOneValidMeasurement {
-		log.Fatal("No valid measurements")
 	}
 
 	// Calculate the distance and the liters
@@ -317,14 +238,11 @@ func main() {
 	sort.Float64s(distances)
 
 	var distance float64
-	// // Using the average of the middle tranch
-	// for i := len(distances) / 3; i < len(distances)-len(distances)/3; i++ {
-	// 	distance += distances[i]
-	// }
-	// distance /= float64(len(distances) - 2*(len(distances)/3))
-
-	// Using the median
-	distance = distances[len(distances)/2]
+	// Using the average of the middle tranch
+	for i := len(distances) / 3; i < len(distances)-len(distances)/3; i++ {
+		distance += distances[i]
+	}
+	distance /= float64(len(distances) - 2*(len(distances)/3))
 
 	stick := ceiling - distance
 	var liters float64
@@ -440,7 +358,7 @@ func main() {
 	}
 
 	if firstPointForAverage.Timestamp != endingPointForAverage.Timestamp {
-		average = -float64(endingPointForAverage.Liters-firstPointForAverage.Liters-bigChanges) / (float64(endingPointForAverage.Timestamp-firstPointForAverage.Timestamp) / (24 * 60 * 60))
+		average = -float64(endingPointForAverage.Liters-firstPointForAverage.Liters+bigChanges) / (float64(endingPointForAverage.Timestamp-firstPointForAverage.Timestamp) / (24 * 60 * 60))
 	}
 
 	fmt.Printf("Average consumption is %.2f liters/day\n", average)

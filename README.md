@@ -87,13 +87,45 @@ PermitRootLogin no
 
 y se ha conectado a la red wifi a través de una antena auxiliar USB (red "Mongolillo's Territory"). Con Raspi-config se ha habilitado ssh, y se han instalado las claves públicas para acceder sin passsword
 
-El medidor se alimenta con 5V, pero para el pin de lectura del eco es necesario utilizar un puente de resistencias R+2R. La conexión es de la siguiente forma:
-- VCC del sensor (cable marríon) -> VCC (pin 2)
+El medidor se alimenta con 5V, pero para el pin de lectura del eco es necesario utilizar un puente de resistencias R+2R. La conexión es a través de una placa auxiliar, de la siguiente forma:
+
+1  2  3  4
+o  o  o  o
+          
+o-[ R1 ]-o
+o-[ R2 ]-o
+o-[ R3 ]-o
+          
+[] [] [] []
+5  6  7  8
+
+Conexiones con el sensor:
+- VCC del sensor (cable marrón) -> pin 1
+- Trig del sensor (cable rojo) -> pin 2
+- Echo del sensor (cable naranja) -> pin 3
+- GND del sensor (cable amarillo) -> pin 4
+
+Conexiones con la raspberry:
+- Pin 5 (cable mnarrón) -> VCC de la Raspberry (pin 2)
+- Pin 6 (cable rojo)-> GPIO 27 (pin 13)
+- Pin 7 (cable naranja)-> GPIO 17 (pin 11)
+- Pin 8 (cable amarillo)-> GBD de la Raspberry (pin 9)
+
+Internamente, la placa auxiliar hace las siguientes conexiones:
+- Pin 1 a pin 5, y pin 4 a pin 8 (conexiones de VCC y de GND)
+- Pin 2 (trig del sensor) a pin 6 (GPIO 27)
+- Pin 3 (echo del sensor) a una pata de R1
+- Pin 7 (GPIO17) a la otra pata de R1
+- Esta segunda pata de R1 a una pata de R2
+- La otra pata de R2 a una pata de R3 (conexión en serie)
+- La otra pata de R3 al pin 8 (GND)
+
+<!-- - VCC del sensor (cable marríon) -> VCC (pin 2)
 - GND del sensor (cable amarillo) -> GND (pin 9)
 - Trig del sensor (cable rojo) -> GPIO 27 (pin 13)
 - Echo del sensor  (cable naranja) -> A un extremo del puente de resistencias (a la resistencia R)
 - El otro extremo del puente de resistencias (a la resistencia 2R) a GND (pin 6)
-- El medio del puente (en el que se unen ambas resistencias) -> GPIO 17 (pin 11)
+- El medio del puente (en el que se unen ambas resistencias) -> GPIO 17 (pin 11) -->
 
 Para usar el VL53L1X:
 - VCC a VCC 3.3V (pin 1, cable rojo)
@@ -194,3 +226,7 @@ Read heat:
 if [ -n "$(raspi-gpio get 17 | grep level=1)" ] ; then echo On; else echo Off; fi
 
 Last measure: 47
+
+
+
+/home/pi/Local/oilmeter /home/pi/Local; cp /home/pi/Local/2020* /home/pi/Gasoleo/data/; cp /home/pi/Local/data.txt /home/pi/Gasoleo; cp /home/pi/Local/graph.png /home/pi/Gasoleo
