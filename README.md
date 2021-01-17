@@ -100,10 +100,10 @@ o-[ R3 ]-o
 5  6  7  8
 
 Conexiones con el sensor:
-- VCC del sensor (cable marrón) -> pin 1
-- Trig del sensor (cable rojo) -> pin 2
-- Echo del sensor (cable naranja) -> pin 3
-- GND del sensor (cable amarillo) -> pin 4
+- VCC del sensor (cable marrón) -> pin 1 [tubo: cable verde]
+- Trig del sensor (cable rojo) -> pin 2 [tubo: cable rojo]
+- Echo del sensor (cable naranja) -> pin 3 [tubo: cable blanco]
+- GND del sensor (cable amarillo) -> pin 4 [tubo: cable amarillo]
 
 Conexiones con la raspberry:
 - Pin 5 (cable mnarrón) -> VCC de la Raspberry (pin 2)
@@ -166,7 +166,18 @@ sudo modprobe w1-gpio
 sudo modprobe w1-therm
 ```
 
-Finalmente, poner en el crontab una medida diaria, o una por hora etc.
+Finalmente, poner en el crontab una medida diaria, o una por hora etc.:
+
+```
+# Este crontab programa tres cosas:
+# => Una medida de temperatura exterior cada 5 minutos
+# => Una medida del gasóleo cada hora, i.e. a las horas exactas
+# => Una comprobación de que el disco compartido está bien montado, y un reboot en caso de que no lo esté. Esto se hace cada hora, a las y 7 (e.g. a las 22:07, a las 23:07, etc), y no a las horas exactas para evitar que interfiera con las medidas
+
+*/5 * * * * /home/pi/Local/measuretemp /home/pi/Local/temperature-ext; sudo mount -a; cp /home/pi/Local/temperature-ext.txt /home/pi/Gasoleo/temperature/; cp /home/pi/Local/temperature-ext.png /home/pi/Gasoleo/temperature/
+0 * * * * /home/pi/Local/oilmeter /home/pi/Local >> /home/pi/Local/log; sudo mount -a; mv /home/pi/Local/2020* /home/pi/Gasoleo/data/; cp /home/pi/Local/data.txt /home/pi/Gasoleo; cp /home/pi/Local/graph.png /home/pi/Gasoleo; cp /home/pi/Local/log /home/pi/Gasoleo/
+7 * * * * if [ ! -e /home/pi/Gasoleo/mounted ] ; then sudo reboot now; fi
+```
 
 El código utilizado está en https://github.com/juliofaura/oilmeter/oilmeter.go
 
@@ -227,6 +238,11 @@ if [ -n "$(raspi-gpio get 17 | grep level=1)" ] ; then echo On; else echo Off; f
 
 Last measure: 47
 
+Crontab para el programa caldera:
+*/1 * * * * if [ ! $(pgrep caldera) ]; then tmux new-session -d -s auto-session /home/pi/Local/caldera; fi
+
 
 
 /home/pi/Local/oilmeter /home/pi/Local; cp /home/pi/Local/2020* /home/pi/Gasoleo/data/; cp /home/pi/Local/data.txt /home/pi/Gasoleo; cp /home/pi/Local/graph.png /home/pi/Gasoleo
+
+*/5 * * * * if [ ! -e /home/pi/Gasoleo/mounted ] ; then sudo reboot now; fi
