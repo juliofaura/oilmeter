@@ -28,12 +28,12 @@ type datapoint struct {
 }
 
 const (
-	sensor = "HC-SR04"
-	// sensor = "VL53L1X"
-	maxsamples      = 50
+	// sensor = "HC-SR04"
+	sensor          = "VL53L1X"
+	maxsamples      = 80
 	delay           = time.Millisecond * 500
 	timeout         = time.Second
-	ceiling         = 143.0
+	ceiling         = 134.7
 	amountGood      = 1000
 	amountDangerous = 600
 	timeForAverage  = (6 * 24 * 60 * 60)
@@ -301,6 +301,8 @@ func main() {
 		thisDistance, err := takeMeasurement()
 		if err != nil {
 			fmt.Println(err)
+		} else if thisDistance < 0 {
+			fmt.Println("Negative distance measured (", thisDistance, "), discarding")
 		} else {
 			// fmt.Println("Distance is", thisDistance)
 			distances = append(distances, thisDistance/10.0)
