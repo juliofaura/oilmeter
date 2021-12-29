@@ -240,40 +240,46 @@ Conexión completa:
                    GPIO19 (35) (36) GPIO16
                    GPIO26 (37) (38) GPIO20
                       GND (39) (40) GPIO21
-´´´
 
 Set power: GPIO 14 & GPIO 15 [output, 0 is off, 1 is on]
 Set heat: GPIO 23 [output, 0 is off, 1 is on]
 Read power: GPIO 27 [input, pullup, 0 is on, 1 is off]
 Read heat: GPIO 17 [input, pullup, 1 is on, 0 is off]
+```
 
 Config:
+```
 raspi-gpio set 14-15 op dh
 raspi-gpio set 23 op dl
 raspi-gpio set 17 ip pu
 raspi-gpio set 27 ip pu
+```
 
 set power:
-On -> raspi-gpio set 14-15 dh
-Off -> raspi-gpio set 14-15 dl
+On -> ```raspi-gpio set 14-15 dh```
+Off -> ```raspi-gpio set 14-15 dl```
 
 set heat:
-On -> raspi-gpio set 23 dh
-Off -> raspi-gpio set 23 dl
+On -> ```raspi-gpio set 23 dh```
+Off -> ```raspi-gpio set 23 dl```
 
 Read power:
+```
 if [ -n "$(raspi-gpio get 27 | grep level=0)" ] ; then echo On; else echo Off; fi
+```
 
 Read heat:
+```
 if [ -n "$(raspi-gpio get 17 | grep level=1)" ] ; then echo On; else echo Off; fi
+```
 
 Last measure: 47
 
 Crontab para el programa caldera:
+```
 */1 * * * * if [ ! $(pgrep caldera) ]; then tmux new-session -d -s auto-session /home/pi/Local/caldera; fi
-
-
 
 /home/pi/Local/oilmeter /home/pi/Local; cp /home/pi/Local/2020* /home/pi/Gasoleo/data/; cp /home/pi/Local/data.txt /home/pi/Gasoleo; cp /home/pi/Local/graph.png /home/pi/Gasoleo
 
 */5 * * * * if [ ! -e /home/pi/Gasoleo/mounted ] ; then sudo reboot now; fi
+```
