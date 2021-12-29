@@ -89,6 +89,7 @@ y se ha conectado a la red wifi a través de una antena auxiliar USB (red "Mongo
 
 El medidor se alimenta con 5V, pero para el pin de lectura del eco es necesario utilizar un puente de resistencias R+2R. La conexión es a través de una placa auxiliar, de la siguiente forma:
 
+```
 1  2  3  4
 o  o  o  o
           
@@ -98,6 +99,7 @@ o-[ R3 ]-o
           
 [] [] [] []
 5  6  7  8
+```
 
 Conexiones con el sensor:
 - VCC del sensor (cable marrón) -> pin 1 [tubo: cable verde]
