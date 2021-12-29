@@ -193,6 +193,7 @@ Relés:
 
 Placa auxiliar:
 
+```
 1  2  3  4  5  6
 o  o  o  o  o  o
 
@@ -205,19 +206,20 @@ o  o  o  o  o  o
     -xxxx-
     -xxxx-
 
-1 -> polo + del switch de heat (cable granate)
-2 -> polo - del switch de heat (cable azul)
-4 -> GPIO 27 (cable gris)
-5 -> GPIO 17 (cable blanco)
-6 -> GND (cable negro)
-
+ 1 -> polo + del switch de heat (cable granate)
+ 2 -> polo - del switch de heat (cable azul)
+ 4 -> GPIO 27 (cable gris)
+ 5 -> GPIO 17 (cable blanco)
+ 6 -> GND (cable negro)
+```
 
 Conexión completa:
 
-BPA (Bus Placa Auxiliar) => Negro / Blanco / Gris
-BRC (Bus Relé Caldera, relé doble) => Granate / Gris / Blanco / Negro
-BRH (Bus Relé Heat, relé simple) => Rojo / Marrón / Naranja
+- BPA (Bus Placa Auxiliar) => Negro / Blanco / Gris
+- BRC (Bus Relé Caldera, relé doble) => Granate / Gris / Blanco / Negro
+- BRH (Bus Relé Heat, relé simple) => Rojo / Marrón / Naranja
 
+```
                       3V3  (1) (2)  5V - BRH Rojo
                     GPIO2  (3) (4)  5V - BRC Granate    
                     GPIO3  (5) (6)  GND - BRC Negro
@@ -238,7 +240,7 @@ BRH (Bus Relé Heat, relé simple) => Rojo / Marrón / Naranja
                    GPIO19 (35) (36) GPIO16
                    GPIO26 (37) (38) GPIO20
                       GND (39) (40) GPIO21
-
+´´´
 
 Set power: GPIO 14 & GPIO 15 [output, 0 is off, 1 is on]
 Set heat: GPIO 23 [output, 0 is off, 1 is on]
