@@ -189,7 +189,7 @@ Read power: GPIO 27 (gray cable) => down (0) is on, up (1) is off
 
 Relés:
   Caldera off / on: GPIO 14 (gray cable) and GIO 15 (white cable) => down is off, up is on
-  Heat on / off: GPIO 23 => down is off, up is on
+  Heat on / off: GPIO 23 (orange cable) => down is off, up is on
 
 Placa auxiliar:
 
@@ -210,6 +210,35 @@ o  o  o  o  o  o
 4 -> GPIO 27 (cable gris)
 5 -> GPIO 17 (cable blanco)
 6 -> GND (cable negro)
+
+
+Conexión completa:
+
+BPA (Bus Placa Auxiliar) => Negro / Blanco / Gris
+BRC (Bus Relé Caldera, relé doble) => Granate / Gris / Blanco / Negro
+BRH (Bus Relé Heat, relé simple) => Rojo / Marrón / Naranja
+
+                      3V3  (1) (2)  5V - BRH Rojo
+                    GPIO2  (3) (4)  5V - BRC Granate    
+                    GPIO3  (5) (6)  GND - BRC Negro
+                    GPIO4  (7) (8)  GPIO14 - BRC Gris
+          BPA Negro - GND  (9) (10) GPIO15 - BRC Blanco
+      BPA Blanco - GPIO17 (11) (12) GPIO18
+        BPA Gris - GPIO27 (13) (14) GND - BRH Marrón
+                   GPIO22 (15) (16) GPIO23 - BRH Naranja
+    Ventilador Rojo - 3V3 (17) (18) GPIO24
+                   GPIO10 (19) (20) GND - Ventilador Negro
+                    GPIO9 (21) (22) GPIO25
+                   GPIO11 (23) (24) GPIO8 
+                      GND (25) (26) GPIO7 
+                    GPIO0 (27) (28) GPIO1 
+                    GPIO5 (29) (30) GND   
+                    GPIO6 (31) (32) GPIO12
+                   GPIO13 (33) (34) GND   
+                   GPIO19 (35) (36) GPIO16
+                   GPIO26 (37) (38) GPIO20
+                      GND (39) (40) GPIO21
+
 
 Set power: GPIO 14 & GPIO 15 [output, 0 is off, 1 is on]
 Set heat: GPIO 23 [output, 0 is off, 1 is on]
