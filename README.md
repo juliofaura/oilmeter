@@ -275,8 +275,6 @@ Read heat:
 if [ -n "$(raspi-gpio get 17 | grep level=1)" ] ; then echo On; else echo Off; fi
 ```
 
-Last measure: 47
-
 Crontab para el programa caldera:
 ```
 */1 * * * * if [ ! $(pgrep caldera) ]; then tmux new-session -d -s auto-session /home/pi/Local/caldera; fi
