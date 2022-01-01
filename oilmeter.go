@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -16,35 +15,16 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/juliofaura/oilmeter/data"
+	"github.com/juliofaura/oilmeter/files"
 	rpio "github.com/stianeikeland/go-rpio"
 	chart "github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/drawing"
 )
 
-type datapoint struct {
-	Timestamp                                       int64
-	Year, Month, Day, Weekday, Hour, Minute, Second int64
-	Duration, Distance, Stick, Liters               float64
-}
-
-const (
-	// sensor = "HC-SR04"
-	sensor          = "VL53L1X"
-	maxsamples      = 80
-	delay           = time.Millisecond * 500
-	timeout         = time.Second
-	ceiling         = 134.7
-	amountGood      = 1000
-	amountDangerous = 600
-	timeForAverage  = (6 * 24 * 60 * 60)
-	newGasThreshold = 200
-)
-
 var (
 	trigPin = rpio.Pin(27)
 	echoPin = rpio.Pin(17)
-
-	workingDir, dataFile, graphFile string
 
 	litersTable = []float64{
 		0,
@@ -176,37 +156,11 @@ var (
 		2995.68301629862,
 		3000,
 	}
-	now = time.Now()
 )
-
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-func saveToFile(msg string) {
-	d1 := []byte(msg)
-	filename := fmt.Sprintf("%04d-%02d-%02d{%d}-%02d-%02d-%02d.txt", now.Year(), now.Month(), now.Day(), now.Weekday(), now.Hour(), now.Minute(), now.Second())
-	err := ioutil.WriteFile(workingDir+filename, d1, 0644)
-	check(err)
-}
-
-func appendToDataFile(msg string) {
-	f, err := os.OpenFile(dataFile,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer f.Close()
-	if _, err := f.WriteString(msg + "\n"); err != nil {
-		fmt.Println(err)
-	}
-}
 
 // Returns the distance in mm
 func takeMeasurement() (measurement float64, err error) {
-	switch sensor {
+	switch data.Sensor {
 	case "HC-SR04":
 		// Send the pulse
 		trigPin.High()
@@ -217,26 +171,26 @@ func takeMeasurement() (measurement float64, err error) {
 
 		// Detect the echo
 
-		// for time.Since(startingTime) < timeout && !echoPin.EdgeDetected() {
+		// for time.Since(startingTime) < data.Timeout && !echoPin.EdgeDetected() {
 		// }
 
 		// First wait echo pin to settle
-		for time.Since(startingTime) < timeout && echoPin.Read() != rpio.High {
+		for time.Since(startingTime) < data.Timeout && echoPin.Read() != rpio.High {
 		}
 		// Then wait for the echo
-		for time.Since(startingTime) < timeout && echoPin.Read() != rpio.Low {
+		for time.Since(startingTime) < data.Timeout && echoPin.Read() != rpio.Low {
 		}
 
 		// Measure the distance
 		duration := time.Since(startingTime)
-		if duration >= timeout {
-			err = errors.New("Timeout in measurement")
+		if duration >= data.Timeout {
+			err = errors.New("data.Timeout in measurement")
 		} else {
 			durationUs := float64(duration) / float64(time.Microsecond)
 			measurement = (durationUs * .343) / 2
 		}
 	case "VL53L1X":
-		cmd := exec.Command("python", workingDir+"distance.py")
+		cmd := exec.Command("python", files.WorkingDir+"distance.py")
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		err = cmd.Run()
@@ -245,9 +199,9 @@ func takeMeasurement() (measurement float64, err error) {
 			measurement, err = strconv.ParseFloat(errStr, 64)
 		}
 	default:
-		log.Fatal("Unknow sensor selected: ", sensor)
+		log.Fatal("Unknow data.Sensor selected: ", data.Sensor)
 	}
-	time.Sleep(delay)
+	time.Sleep(data.Delay)
 	return
 }
 
@@ -258,18 +212,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	workingDir = os.Args[1] + "/"
-	dataFile = workingDir + "data.txt"
-	graphFile = workingDir + "graph.png"
+	files.WorkingDir = os.Args[1] + "/"
+	files.DataFile = files.WorkingDir + "data.txt"
+	files.GraphFile = files.WorkingDir + "graph.png"
+	files.AverageFile = files.WorkingDir + "oilaverage.txt"
 
 	fmt.Println("Starting")
 	time.Sleep(2 * time.Second)
 
 	// Now configuring GPIO
 
-	// Open and map memory to access gpio, check for errors
+	// Open and map memory to access gpio, data.Check for errors
 	fmt.Println("Opening rpio ...")
-	check(rpio.Open())
+	data.Check(rpio.Open())
 
 	if err := rpio.Open(); err != nil {
 		fmt.Println(err)
@@ -292,12 +247,12 @@ func main() {
 	fmt.Println("Taking a measurement, date/time is", time.Now())
 
 	// Measuring samples
-	fmt.Printf("Starting samples (ceiling is %.1f)...\n", ceiling)
+	fmt.Printf("Starting samples (data.Ceiling is %.1f)...\n", data.Ceiling)
 
 	atLeastOneValidMeasurement := false
 
 	distances := []float64{}
-	for i := 0; i < maxsamples; i++ {
+	for i := 0; i < data.Maxsamples; i++ {
 		thisDistance, err := takeMeasurement()
 		if err != nil {
 			fmt.Println(err)
@@ -328,7 +283,7 @@ func main() {
 	// Using the median
 	distance = distances[len(distances)/2]
 
-	stick := ceiling - distance
+	stick := data.Ceiling - distance
 	var liters float64
 
 	if stick < 0 {
@@ -344,36 +299,36 @@ func main() {
 		0.0, distance, stick, liters,
 	)
 	fmt.Println(message)
-	saveToFile(message)
+	files.SaveToFile(message)
 
 	dataline := fmt.Sprintf("%0d,%d,%d,%d,%d,%d,%d,%d,%f,%f,%f,%f",
-		now.Unix(),
-		now.Year(),
-		now.Month(),
-		now.Day(),
-		now.Weekday(),
-		now.Hour(),
-		now.Minute(),
-		now.Second(),
+		data.Now.Unix(),
+		data.Now.Year(),
+		data.Now.Month(),
+		data.Now.Day(),
+		data.Now.Weekday(),
+		data.Now.Hour(),
+		data.Now.Minute(),
+		data.Now.Second(),
 		0.0,
 		distance,
 		stick,
 		liters,
 	)
-	appendToDataFile(dataline)
+	files.AppendToDataFile(dataline)
 
 	/*
 	 * Now rendering report
 	 */
 
-	csvFile, err := os.Open(dataFile)
+	csvFile, err := os.Open(files.DataFile)
 	if err != nil {
 		log.Println(err)
 	}
 	defer csvFile.Close()
 
 	reader := csv.NewReader(bufio.NewReader(csvFile))
-	var data []datapoint
+	var datums []data.Datapoint
 	for {
 		line, error := reader.Read()
 		if error == io.EOF {
@@ -381,36 +336,13 @@ func main() {
 		} else if error != nil {
 			log.Fatal(error)
 		}
-		var dataPoint datapoint
-		dataPoint.Timestamp, err = strconv.ParseInt(line[0], 10, 64)
-		check(err)
-		dataPoint.Year, err = strconv.ParseInt(line[1], 10, 64)
-		check(err)
-		dataPoint.Month, err = strconv.ParseInt(line[2], 10, 64)
-		check(err)
-		dataPoint.Day, err = strconv.ParseInt(line[3], 10, 64)
-		check(err)
-		dataPoint.Weekday, err = strconv.ParseInt(line[4], 10, 64)
-		check(err)
-		dataPoint.Hour, err = strconv.ParseInt(line[5], 10, 64)
-		check(err)
-		dataPoint.Minute, err = strconv.ParseInt(line[6], 10, 64)
-		check(err)
-		dataPoint.Second, err = strconv.ParseInt(line[7], 10, 64)
-		check(err)
-		dataPoint.Duration, err = strconv.ParseFloat(line[8], 64)
-		check(err)
-		dataPoint.Distance, err = strconv.ParseFloat(line[9], 64)
-		check(err)
-		dataPoint.Stick, err = strconv.ParseFloat(line[10], 64)
-		check(err)
-		dataPoint.Liters, err = strconv.ParseFloat(line[11], 64)
-		check(err)
-		data = append(data, dataPoint)
+		dataPoint, err := files.ReadDataPoint(line)
+		data.Check(err)
+		datums = append(datums, dataPoint)
 	}
 	var XValues []float64
 	var YValues []float64
-	for _, v := range data {
+	for _, v := range datums {
 		XValues = append(XValues, float64(v.Timestamp))
 		YValues = append(YValues, v.Liters)
 	}
@@ -420,23 +352,23 @@ func main() {
 
 	var labelColor drawing.Color
 
-	if LastY > amountGood {
+	if LastY > data.AmountGood {
 		labelColor = chart.ColorGreen
-	} else if LastY > amountDangerous {
+	} else if LastY > data.AmountDangerous {
 		labelColor = chart.ColorYellow
 	} else {
 		labelColor = chart.ColorRed
 	}
 
 	var average = 0.0
-	firstPointForAverage, endingPointForAverage := data[len(data)-1], data[len(data)-1]
+	firstPointForAverage, endingPointForAverage := datums[len(datums)-1], datums[len(datums)-1]
 	var bigChanges = 0.0
-	for i := len(data) - 2; i >= 0; i-- {
-		if math.Abs(data[i].Liters-data[i+1].Liters) > newGasThreshold {
-			bigChanges += data[i+1].Liters - data[i].Liters
+	for i := len(datums) - 2; i >= 0; i-- {
+		if math.Abs(datums[i].Liters-datums[i+1].Liters) > data.NewGasThreshold {
+			bigChanges += datums[i+1].Liters - datums[i].Liters
 		}
-		firstPointForAverage = data[i]
-		if endingPointForAverage.Timestamp-firstPointForAverage.Timestamp >= int64(timeForAverage) {
+		firstPointForAverage = datums[i]
+		if endingPointForAverage.Timestamp-firstPointForAverage.Timestamp >= int64(data.TimeForAverage) {
 			break
 		}
 	}
@@ -448,6 +380,13 @@ func main() {
 	fmt.Printf("Average consumption is %.2f liters/day\n", average)
 	fmt.Println("Starting / ending liters: ", firstPointForAverage.Liters, " / ", endingPointForAverage.Liters, " (big changes are", bigChanges, ")")
 	fmt.Println("Starting / ending timestamps: ", firstPointForAverage.Timestamp, " / ", endingPointForAverage.Timestamp)
+
+	avgFile, err := os.Create(files.AverageFile)
+	if err != nil {
+		log.Println(err)
+	}
+	defer avgFile.Close()
+	avgFile.WriteString(fmt.Sprintf("%.2f\n", average))
 
 	graph := chart.Chart{
 		XAxis: chart.XAxis{
@@ -495,7 +434,7 @@ func main() {
 		Title: "Oil liters vs time (avg is " + fmt.Sprintf("%.2f", average) + " liters / day)",
 	}
 
-	f, _ := os.Create(graphFile)
+	f, _ := os.Create(files.GraphFile)
 	defer f.Close()
 	graph.Render(chart.PNG, f)
 
