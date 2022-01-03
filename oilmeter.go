@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
-	"encoding/csv"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"os"
@@ -321,25 +318,29 @@ func main() {
 	 * Now rendering report
 	 */
 
-	csvFile, err := os.Open(files.DataFile)
-	if err != nil {
-		log.Println(err)
-	}
-	defer csvFile.Close()
+	datums, err := files.ReadDataFile(files.DataFile)
+	data.Check(err)
 
-	reader := csv.NewReader(bufio.NewReader(csvFile))
-	var datums []data.Datapoint
-	for {
-		line, error := reader.Read()
-		if error == io.EOF {
-			break
-		} else if error != nil {
-			log.Fatal(error)
-		}
-		dataPoint, err := files.ReadDataPoint(line)
-		data.Check(err)
-		datums = append(datums, dataPoint)
-	}
+	// csvFile, err := os.Open(files.DataFile)
+	// if err != nil {
+	// 	log.Println(err)
+	// }
+	// defer csvFile.Close()
+
+	// reader := csv.NewReader(bufio.NewReader(csvFile))
+	// var datums []data.Datapoint
+	// for {
+	// 	line, error := reader.Read()
+	// 	if error == io.EOF {
+	// 		break
+	// 	} else if error != nil {
+	// 		log.Fatal(error)
+	// 	}
+	// 	dataPoint, err := files.ReadDataPoint(line)
+	// 	data.Check(err)
+	// 	datums = append(datums, dataPoint)
+	// }
+
 	var XValues []float64
 	var YValues []float64
 	for _, v := range datums {

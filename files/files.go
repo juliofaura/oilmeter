@@ -1,8 +1,12 @@
 package files
 
 import (
+	"bufio"
+	"encoding/csv"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 
@@ -78,5 +82,28 @@ func ReadDataPoint(record []string) (dataPoint data.Datapoint, err error) {
 		return
 	}
 	dataPoint.Liters, err = strconv.ParseFloat(record[11], 64)
+	return
+}
+
+func ReadDataFile(dataFile string) (datums []data.Datapoint, err error) {
+
+	csvFile, err := os.Open(dataFile)
+	if err != nil {
+		return
+	}
+	defer csvFile.Close()
+
+	reader := csv.NewReader(bufio.NewReader(csvFile))
+	for {
+		line, error := reader.Read()
+		if error == io.EOF {
+			break
+		} else if error != nil {
+			log.Fatal(error)
+		}
+		dataPoint, err := ReadDataPoint(line)
+		data.Check(err)
+		datums = append(datums, dataPoint)
+	}
 	return
 }
