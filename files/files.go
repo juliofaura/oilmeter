@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 
@@ -99,11 +98,13 @@ func ReadDataFile(dataFile string) (datums []data.Datapoint, err error) {
 		if error == io.EOF {
 			break
 		} else if error != nil {
-			log.Fatal(error)
+			return
 		}
-		dataPoint, err := ReadDataPoint(line)
-		data.Check(err)
-		datums = append(datums, dataPoint)
+		dataPoint, error := ReadDataPoint(line)
+		if err == nil {
+			datums = append(datums, dataPoint)
+		}
+		// Ok if some data are wrong from time to time, we just ignore
 	}
 	return
 }
