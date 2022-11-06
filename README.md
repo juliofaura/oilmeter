@@ -133,7 +133,7 @@ Para usar el VL53L1X:
 - VCC a VCC 3.3V (pin 1, cable rojo)
 - SDA a SDA I2C1 (Pin 3, cable naranja)
 - SCL a SCL I2C1 (Pin5, cable amarillo)
-- GND a GND (pin 7, cable marrón)
+- GND a GND (pin 9, cable marrón) => EL 9!!!!, no el 7!!!!
 
 
 De cara a poder comunicar los datos de forma que sean accesibles desde fuera, se ha montado un disco remoto por Samba. Para ello hay que:
