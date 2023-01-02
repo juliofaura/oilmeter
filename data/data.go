@@ -8,7 +8,7 @@ const (
 	Maxsamples      = 80
 	Delay           = time.Millisecond * 500
 	Timeout         = time.Second
-	Ceiling         = 134.7
+	Ceiling         = 135.3
 	AmountGood      = 1000
 	AmountDangerous = 600
 	TimeForAverage  = (6 * 24 * 60 * 60)
