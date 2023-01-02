@@ -135,6 +135,30 @@ Para usar el VL53L1X:
 - SCL a SCL I2C1 (Pin5, cable amarillo)
 - GND a GND (pin 9, cable marrón) => EL 9!!!!, no el 7!!!!
 
+Conexión final (con el VL53L1X):
+
+```
+         VCC VL53L1X (cable rojo) - 3V3  (1) (2)  5V
+    SDA VL53L1X (cable naranja) - GPIO2  (3) (4)  5V - Sensor temp VCC
+   SCL VL53L1X (cable amarillo) - GPIO3  (5) (6)  GND - Sensor temp GND
+            Sensor temp measure - GPIO4  (7) (8)  GPIO14
+       GND VL53L1X (cable marrón) - GND  (9) (10) GPIO15
+                                 GPIO17 (11) (12) GPIO18
+                                 GPIO27 (13) (14) GND
+                                 GPIO22 (15) (16) GPIO23
+                                    3V3 (17) (18) GPIO24
+                                 GPIO10 (19) (20) GND
+                                  GPIO9 (21) (22) GPIO25
+                                 GPIO11 (23) (24) GPIO8 
+                                    GND (25) (26) GPIO7 
+                                  GPIO0 (27) (28) GPIO1 
+                                  GPIO5 (29) (30) GND   
+                                  GPIO6 (31) (32) GPIO12
+                                 GPIO13 (33) (34) GND   
+                                 GPIO19 (35) (36) GPIO16
+                                 GPIO26 (37) (38) GPIO20
+                                    GND (39) (40) GPIO21
+```
 
 De cara a poder comunicar los datos de forma que sean accesibles desde fuera, se ha montado un disco remoto por Samba. Para ello hay que:
 - Añadir la siguiente línea a ```/etc/fstab```:
