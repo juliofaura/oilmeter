@@ -130,10 +130,10 @@ Internamente, la placa auxiliar hace las siguientes conexiones:
 - El medio del puente (en el que se unen ambas resistencias) -> GPIO 17 (pin 11) -->
 
 Para usar el VL53L1X:
-- VCC a VCC 3.3V (pin 1, cable rojo)
-- SDA a SDA I2C1 (Pin 3, cable naranja)
-- SCL a SCL I2C1 (Pin5, cable amarillo)
-- GND a GND (pin 9, cable marrón) => EL 9!!!!, no el 7!!!!
+- VCC a VCC 3.3V (pin 1, cable rojo) => al cable marrón de la manguera verde
+- SDA a SDA I2C1 (Pin 3, cable naranja) => al cable gris de la manguera verde
+- SCL a SCL I2C1 (Pin5, cable amarillo) => al cable verde/amarillo de la manguera verde
+- GND a GND (pin 9, cable marrón) => EL 9!!!!, no el 7!!!! => al cable negro de la manguera verde
 
 Conexión final (con el VL53L1X):
 
