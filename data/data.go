@@ -8,7 +8,6 @@ const (
 	Maxsamples      = 80
 	Delay           = time.Millisecond * 500
 	Timeout         = time.Second
-	Ceiling         = 134.7
 	AmountGood      = 1000
 	AmountDangerous = 600
 	TimeForAverage  = (6 * 24 * 60 * 60)
@@ -22,7 +21,8 @@ type Datapoint struct {
 }
 
 var (
-	Now = time.Now()
+	Ceiling = 136.5 // in cm
+	Now     = time.Now()
 )
 
 func Check(e error) {

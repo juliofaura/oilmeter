@@ -155,6 +155,38 @@ var (
 	}
 )
 
+func initializeSensor() {
+	switch data.Sensor {
+	case "HC-SR04":
+		// Now configuring GPIO
+		// Open and map memory to access gpio, data.Check for errors
+		fmt.Println("Opening rpio ...")
+		data.Check(rpio.Open())
+
+		if err := rpio.Open(); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		// Unmap gpio memory when done
+		// defer rpio.Close()
+
+		// Set pin to output mode
+		fmt.Println("Configuring pins ...")
+		trigPin.Output()
+		echoPin.Input()
+		trigPin.Low()
+
+		// Some time to settle
+		fmt.Println("Waiting to settle ...")
+		time.Sleep(2 * time.Second)
+
+	case "VL53L1X":
+	default:
+		log.Fatal("Unknow data.Sensor selected: ", data.Sensor)
+	}
+}
+
 // Returns the distance in mm
 func takeMeasurement() (measurement float64, err error) {
 	switch data.Sensor {
@@ -194,6 +226,7 @@ func takeMeasurement() (measurement float64, err error) {
 		if err == nil {
 			errStr := string(stderr.Bytes())
 			measurement, err = strconv.ParseFloat(errStr, 64)
+			measurement /= 10.0 // this is to convert to cm (the python script provides measurement in mm)
 		}
 	default:
 		log.Fatal("Unknow data.Sensor selected: ", data.Sensor)
@@ -202,62 +235,82 @@ func takeMeasurement() (measurement float64, err error) {
 	return
 }
 
+func calculateLiters(distance float64) (stick float64, liters float64) {
+	stick = data.Ceiling - distance
+	if stick < 0 {
+		liters = 0
+	} else if stick >= float64(len(litersTable)) {
+		liters = 3000
+	} else {
+		tranch := int(stick)
+		liters = litersTable[tranch] + (litersTable[tranch+1]-litersTable[tranch])*(stick-float64(tranch))
+	}
+	return
+}
+
 func main() {
 
-	if len(os.Args) != 2 {
-		fmt.Println("Usage: " + os.Args[0] + " <working dir>, where <working dir> is the directory where the .txt and .png files will be placed")
+	if len(os.Args) < 2 || len(os.Args) > 3 {
+		fmt.Println("Usage: " + os.Args[0] + " <ceiling> [<working dir>], where <ceiling> is the offset to calibrate calculations and <working dir> is the directory where the .txt and .png files will be placed. If no <working dir> is specified then a single measurement will be taken and the output will be sent to the terminal")
 		os.Exit(1)
 	}
 
-	files.WorkingDir = os.Args[1] + "/"
-	files.DataFile = files.WorkingDir + "data.txt"
-	files.GraphFile = files.WorkingDir + "graph.png"
-	files.AverageFile = files.WorkingDir + "oilaverage.txt"
-
-	fmt.Println("Starting")
-	time.Sleep(2 * time.Second)
-
-	// Now configuring GPIO
-
-	// Open and map memory to access gpio, data.Check for errors
-	fmt.Println("Opening rpio ...")
-	data.Check(rpio.Open())
-
-	if err := rpio.Open(); err != nil {
+	ceiling, err := strconv.ParseFloat(os.Args[1], 64)
+	if err != nil {
+		fmt.Println("Bad ceiling - " + os.Args[1])
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	// Unmap gpio memory when done
-	defer rpio.Close()
+	data.Ceiling = ceiling
 
-	// Set pin to output mode
-	fmt.Println("Configuring pins ...")
-	trigPin.Output()
-	echoPin.Input()
-	trigPin.Low()
+	oneRun := true
 
-	// Some time to settle
-	fmt.Println("Waiting to settle ...")
+	if len(os.Args) == 3 {
+		oneRun = false
+		files.WorkingDir = os.Args[2] + "/"
+		files.DataFile = files.WorkingDir + "data.txt"
+		files.GraphFile = files.WorkingDir + "graph.png"
+		files.AverageFile = files.WorkingDir + "oilaverage.txt"
+	}
+
+	fmt.Println("Starting")
 	time.Sleep(2 * time.Second)
 
-	fmt.Println("Taking a measurement, date/time is", time.Now())
+	initializeSensor()
+
+	if oneRun {
+		fmt.Println("Taking one measurement, date/time is", time.Now())
+		oneDistance, err := takeMeasurement()
+		if err != nil {
+			fmt.Println("Error taking measurement")
+			fmt.Println(err)
+		} else if oneDistance < 0 {
+			fmt.Println("Negative distance measured (", oneDistance, "), this is wrong!")
+		} else {
+			stick, liters := calculateLiters(oneDistance)
+			fmt.Println("Distance (cm) = ", oneDistance)
+			fmt.Println("Stick (cm) = ", stick)
+			fmt.Println("Liters (l) = ", liters)
+		}
+		os.Exit(0)
+	}
 
 	// Measuring samples
 	fmt.Printf("Starting samples (data.Ceiling is %.1f)...\n", data.Ceiling)
-
 	atLeastOneValidMeasurement := false
 
 	distances := []float64{}
 	for i := 0; i < data.Maxsamples; i++ {
 		thisDistance, err := takeMeasurement()
 		if err != nil {
+			fmt.Println("Error taking measurement")
 			fmt.Println(err)
 		} else if thisDistance < 0 {
 			fmt.Println("Negative distance measured (", thisDistance, "), discarding")
 		} else {
-			// fmt.Println("Distance is", thisDistance)
-			distances = append(distances, thisDistance/10.0)
+			//fmt.Println("Distance is", thisDistance)
+			distances = append(distances, thisDistance)
 			atLeastOneValidMeasurement = true
 		}
 	}
@@ -279,21 +332,10 @@ func main() {
 
 	// Using the median
 	distance = distances[len(distances)/2]
+	stick, liters := calculateLiters(distance)
 
-	stick := data.Ceiling - distance
-	var liters float64
-
-	if stick < 0 {
-		liters = 0
-	} else if stick >= float64(len(litersTable)) {
-		liters = 3000
-	} else {
-		tranch := int(stick)
-		liters = litersTable[tranch] + (litersTable[tranch+1]-litersTable[tranch])*(stick-float64(tranch))
-	}
-
-	message := fmt.Sprintf("Duration (us) = %.1f\nDistance (cm) = %.1f\nStick (cm) = %.1f\nLiters (l) = %.1f\n",
-		0.0, distance, stick, liters,
+	message := fmt.Sprintf("Distance (cm) = %.1f\nStick (cm) = %.1f\nLiters (l) = %.1f\n",
+		distance, stick, liters,
 	)
 	fmt.Println(message)
 	files.SaveToFile(message)
@@ -394,8 +436,9 @@ func main() {
 			TickPosition: chart.TickPositionBetweenTicks,
 			ValueFormatter: func(v interface{}) string {
 				typed := v.(float64) * 1e9
-				typedDate := chart.TimeFromFloat64(typed)
-				return fmt.Sprintf("%d/%d/%d", typedDate.Month(), typedDate.Day(), typedDate.Year())
+				return chart.TimeValueFormatter(typed)
+				// typedDate := chart.TimeFromFloat64(typed)
+				// return fmt.Sprintf("%d/%d/%d", typedDate.Month(), typedDate.Day(), typedDate.Year())
 			},
 			Style: chart.Style{
 				TextRotationDegrees: 45,
