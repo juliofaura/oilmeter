@@ -108,3 +108,7 @@ func ReadDataFile(dataFile string) (datums []data.Datapoint, err error) {
 	}
 	return
 }
+
+func FilterData(datums []data.Datapoint) (filteredDatums []data.Datapoint) {
+	return filteredDatums
+}

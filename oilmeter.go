@@ -15,8 +15,8 @@ import (
 	"github.com/juliofaura/oilmeter/data"
 	"github.com/juliofaura/oilmeter/files"
 	rpio "github.com/stianeikeland/go-rpio"
-	chart "github.com/wcharczuk/go-chart"
-	"github.com/wcharczuk/go-chart/drawing"
+	chart "github.com/wcharczuk/go-chart/v2"
+	"github.com/wcharczuk/go-chart/v2/drawing"
 )
 
 var (
@@ -156,35 +156,37 @@ var (
 )
 
 func initializeSensor() {
+	log.Println("Initializing for" + data.Sensor + " usage ...")
 	switch data.Sensor {
 	case "HC-SR04":
 		// Now configuring GPIO
 		// Open and map memory to access gpio, data.Check for errors
-		fmt.Println("Opening rpio ...")
+		log.Println("Opening rpio ...")
 		data.Check(rpio.Open())
 
 		if err := rpio.Open(); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			log.Fatal(err)
 		}
 
 		// Unmap gpio memory when done
 		// defer rpio.Close()
 
 		// Set pin to output mode
-		fmt.Println("Configuring pins ...")
+		log.Println("Configuring pins ...")
 		trigPin.Output()
 		echoPin.Input()
 		trigPin.Low()
 
 		// Some time to settle
-		fmt.Println("Waiting to settle ...")
+		log.Println("Waiting to settle ...")
 		time.Sleep(2 * time.Second)
 
 	case "VL53L1X":
+		log.Println("No initialization needed")
 	default:
 		log.Fatal("Unknow data.Sensor selected: ", data.Sensor)
 	}
+	log.Println("Initialization for " + data.Sensor + " finished!")
 }
 
 // Returns the distance in mm
@@ -274,19 +276,21 @@ func main() {
 		files.AverageFile = files.WorkingDir + "oilaverage.txt"
 	}
 
-	fmt.Println("Starting")
+	log.Println("Starting, date/time is", time.Now())
 	time.Sleep(2 * time.Second)
 
 	initializeSensor()
 
 	if oneRun {
-		fmt.Println("Taking one measurement, date/time is", time.Now())
+		fmt.Println("Taking one measurement")
 		oneDistance, err := takeMeasurement()
 		if err != nil {
 			fmt.Println("Error taking measurement")
 			fmt.Println(err)
+			os.Exit(1)
 		} else if oneDistance < 0 {
 			fmt.Println("Negative distance measured (", oneDistance, "), this is wrong!")
+			os.Exit(1)
 		} else {
 			stick, liters := calculateLiters(oneDistance)
 			fmt.Println("Distance (cm) = ", oneDistance)
@@ -297,19 +301,19 @@ func main() {
 	}
 
 	// Measuring samples
-	fmt.Printf("Starting samples (data.Ceiling is %.1f)...\n", data.Ceiling)
+	log.Printf("Starting samples, data.Ceiling is %.1f ...\n", data.Ceiling)
 	atLeastOneValidMeasurement := false
 
 	distances := []float64{}
 	for i := 0; i < data.Maxsamples; i++ {
 		thisDistance, err := takeMeasurement()
 		if err != nil {
-			fmt.Println("Error taking measurement")
-			fmt.Println(err)
+			log.Println("Error taking measurement")
+			log.Println(err)
 		} else if thisDistance < 0 {
-			fmt.Println("Negative distance measured (", thisDistance, "), discarding")
+			log.Println("Negative distance measured (", thisDistance, "), discarding")
 		} else {
-			//fmt.Println("Distance is", thisDistance)
+			//log.Println("Distance is", thisDistance)
 			distances = append(distances, thisDistance)
 			atLeastOneValidMeasurement = true
 		}
@@ -320,7 +324,7 @@ func main() {
 	}
 
 	// Calculate the distance and the liters
-	fmt.Printf("Calculating everything (good samples are %d)...\n", len(distances))
+	log.Printf("Calculating everything (good samples are %d)...\n", len(distances))
 	sort.Float64s(distances)
 
 	var distance float64
@@ -334,10 +338,10 @@ func main() {
 	distance = distances[len(distances)/2]
 	stick, liters := calculateLiters(distance)
 
-	message := fmt.Sprintf("Distance (cm) = %.1f\nStick (cm) = %.1f\nLiters (l) = %.1f\n",
+	message := fmt.Sprintf("Distance (cm) = %.1f, Stick (cm) = %.1f, Liters (l) = %.1f\n",
 		distance, stick, liters,
 	)
-	fmt.Println(message)
+	log.Println(message)
 	files.SaveToFile(message)
 
 	dataline := fmt.Sprintf("%0d,%d,%d,%d,%d,%d,%d,%d,%f,%f,%f,%f",
@@ -420,9 +424,9 @@ func main() {
 		average = -float64(endingPointForAverage.Liters-firstPointForAverage.Liters-bigChanges) / (float64(endingPointForAverage.Timestamp-firstPointForAverage.Timestamp) / (24 * 60 * 60))
 	}
 
-	fmt.Printf("Average consumption is %.2f liters/day\n", average)
-	fmt.Println("Starting / ending liters: ", firstPointForAverage.Liters, " / ", endingPointForAverage.Liters, " (big changes are", bigChanges, ")")
-	fmt.Println("Starting / ending timestamps: ", firstPointForAverage.Timestamp, " / ", endingPointForAverage.Timestamp)
+	log.Printf("Average consumption is %.2f liters/day\n", average)
+	log.Println("Starting / ending liters: ", firstPointForAverage.Liters, " / ", endingPointForAverage.Liters, " (big changes are", bigChanges, ")")
+	log.Println("Starting / ending timestamps: ", firstPointForAverage.Timestamp, " / ", endingPointForAverage.Timestamp)
 
 	avgFile, err := os.Create(files.AverageFile)
 	if err != nil {
