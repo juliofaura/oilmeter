@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"strconv"
 
@@ -110,5 +111,24 @@ func ReadDataFile(dataFile string) (datums []data.Datapoint, err error) {
 }
 
 func FilterData(datums []data.Datapoint) (filteredDatums []data.Datapoint) {
-	return filteredDatums
+	if len(datums) < 6 {
+		return datums
+	}
+
+	for i, v := range datums {
+		if i < 3 {
+			filteredDatums = append(filteredDatums, v)
+			continue
+		}
+		if (math.Abs(v.Liters-datums[i-1].Liters) < data.GasFilteringThreshold) || (math.Abs(v.Liters-datums[i-2].Liters) < data.GasFilteringThreshold) || (math.Abs(v.Liters-datums[i-3].Liters) < data.GasFilteringThreshold) {
+			filteredDatums = append(filteredDatums, v)
+		}
+		if i >= len(datums)-3 {
+			continue
+		}
+		if (math.Abs(v.Liters-datums[i+1].Liters) < data.GasFilteringThreshold) || (math.Abs(v.Liters-datums[i+2].Liters) < data.GasFilteringThreshold) || (math.Abs(v.Liters-datums[i+3].Liters) < data.GasFilteringThreshold) {
+			filteredDatums = append(filteredDatums, v)
+		}
+	}
+	return
 }
