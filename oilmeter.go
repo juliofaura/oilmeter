@@ -326,6 +326,8 @@ func main() {
 	// Calculate the distance and the liters
 	log.Printf("Calculating everything (good samples are %d)...\n", len(distances))
 	sort.Float64s(distances)
+	log.Println("Sorted all distances:")
+	log.Println(distances)
 
 	var distance float64
 	// // Using the average of the middle tranch
