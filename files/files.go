@@ -110,25 +110,29 @@ func ReadDataFile(dataFile string) (datums []data.Datapoint, err error) {
 	return
 }
 
-func FilterData(datums []data.Datapoint) (filteredDatums []data.Datapoint) {
-	if len(datums) < 6 {
-		return datums
-	}
+func FilterDatafile(datumsIn []data.Datapoint, filterThreshold float64) (datumsOut []data.Datapoint) {
+	if len(datumsIn) >= 6 {
 
-	for i, v := range datums {
-		if i < 3 {
-			filteredDatums = append(filteredDatums, v)
-			continue
+		for i, v := range datumsIn {
+			if i < 3 {
+				datumsOut = append(datumsOut, v)
+				continue
+			}
+			if (math.Abs(v.Liters-datumsIn[i-1].Liters) < filterThreshold) || (math.Abs(v.Liters-datumsIn[i-2].Liters) < filterThreshold) || (math.Abs(v.Liters-datumsIn[i-3].Liters) < filterThreshold) {
+				datumsOut = append(datumsOut, v)
+				continue
+			} else {
+			}
+			if i >= len(datumsOut)-3 {
+				continue
+			}
+			if (math.Abs(v.Liters-datumsIn[i+1].Liters) < filterThreshold) || (math.Abs(v.Liters-datumsIn[i+2].Liters) < filterThreshold) || (math.Abs(v.Liters-datumsIn[i+3].Liters) < filterThreshold) {
+				datumsOut = append(datumsOut, v)
+			} else {
+			}
 		}
-		if (math.Abs(v.Liters-datums[i-1].Liters) < data.GasFilteringThreshold) || (math.Abs(v.Liters-datums[i-2].Liters) < data.GasFilteringThreshold) || (math.Abs(v.Liters-datums[i-3].Liters) < data.GasFilteringThreshold) {
-			filteredDatums = append(filteredDatums, v)
-		}
-		if i >= len(datums)-3 {
-			continue
-		}
-		if (math.Abs(v.Liters-datums[i+1].Liters) < data.GasFilteringThreshold) || (math.Abs(v.Liters-datums[i+2].Liters) < data.GasFilteringThreshold) || (math.Abs(v.Liters-datums[i+3].Liters) < data.GasFilteringThreshold) {
-			filteredDatums = append(filteredDatums, v)
-		}
+	} else {
+		datumsOut = datumsIn
 	}
 	return
 }

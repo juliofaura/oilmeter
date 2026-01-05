@@ -4,15 +4,14 @@ import "time"
 
 const (
 	// sensor = "HC-SR04"
-	Sensor                = "VL53L1X"
-	Maxsamples            = 80
-	Delay                 = time.Millisecond * 500
-	Timeout               = time.Second
-	AmountGood            = 1000
-	AmountDangerous       = 600
-	TimeForAverage        = (6 * 24 * 60 * 60)
-	NewGasThreshold       = 200
-	GasFilteringThreshold = 100
+	Sensor          = "VL53L1X"
+	Maxsamples      = 80
+	Delay           = time.Millisecond * 500
+	Timeout         = time.Second
+	AmountGood      = 1000
+	AmountDangerous = 600
+	TimeForAverage  = (6 * 24 * 60 * 60)
+	NewGasThreshold = 200
 )
 
 type Datapoint struct {
